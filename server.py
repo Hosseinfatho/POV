@@ -183,7 +183,7 @@ def perform_visibility_analysis(data_cube, acc_cube, raycast_cube_size):
                         # Check bounds and height
                         if (0 <= ray_x < acc_size and 
                             0 <= ray_y < acc_size and 
-                            ray_z > max_data_z + raycast_cube_size):  # Only count above highest data
+                            ray_z > max_data_z +max_data_z/round(np.tan(np.radians(60)))):  # Only count above highest data
                             
                             # Check if ray hits another data point
                             check_x = ray_x - center_x
