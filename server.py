@@ -16,12 +16,48 @@ from real_data import load_and_analyze_data
 app = Flask(__name__, static_url_path='', static_folder='static')
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-def create_data_cube(size, probability):
+def create_data_cube(size, acc_size, num_cubes, probability):
     colors = ['green', 'blue', 'red', 'yellow']
-    cube = np.zeros((size, size, size), dtype=object)
-    for x, y, z in product(range(size), repeat=3):
-        if random.random() < probability/100:
-            cube[x,y,z] = random.choice(colors)
+    cube = np.zeros((acc_size, acc_size, acc_size), dtype=object)
+    
+    # Keep track of used positions to avoid overlap
+    used_positions = set()
+    max_z = acc_size // 2  # Maximum z position for data cubes
+    
+    max_attempts_per_cube = 100  # Maximum attempts for each cube
+    
+    for _ in range(num_cubes):
+        attempts = 0
+        while True:
+            if attempts >= max_attempts_per_cube:
+                print(f"Warning: Could not place cube after {max_attempts_per_cube} attempts")
+                break
+            
+            attempts += 1
+            # Generate random position
+            x = random.randint(0, acc_size - size - 1)
+            y = random.randint(0, acc_size - size - 1)
+            z = random.randint(0, max_z - size - 1)  # Restrict to lower half
+            
+            # Check if position overlaps with existing cubes
+            overlap = False
+            for used_x, used_y, used_z in used_positions:
+                # Reduce minimum distance between cubes
+                if (abs(x - used_x) < size//2 and 
+                    abs(y - used_y) < size//2 and 
+                    abs(z - used_z) < size//2):
+                    overlap = True
+                    break
+            
+            if not overlap:
+                used_positions.add((x, y, z))
+                # Fill this data cube with random data
+                for dx, dy, dz in product(range(size), repeat=3):
+                    if random.random() < probability/100:
+                        cube[x + dx, y + dy, z + dz] = random.choice(colors)
+                break
+    
+    print(f"Created {len(used_positions)} data cubes at positions: {sorted(used_positions)}")
     return cube
 
 def bresenham_3d(start, end):
@@ -99,36 +135,37 @@ def get_sphere_directions(vertical_res, horizontal_res):
 def perform_visibility_analysis(data_cube, acc_cube, raycast_cube_size):
     data_size = data_cube.shape[0]
     acc_size = acc_cube.shape[0]
-    start_xy = (acc_size - data_size) // 2
     
-    # Ensure raycast_cube_size is odd
-    if raycast_cube_size % 2 == 0:
-        raycast_cube_size += 1
+    # Reset accumulator
+    acc_cube.fill(0)
     
-    # Calculate center offset for raycast cube
-    rc_offset = raycast_cube_size // 2
+    # Find highest data point z-coordinate
+    max_data_z = 0
+    for x, y, z in product(range(acc_size), repeat=3):
+        if data_cube[x,y,z] != 0:
+            max_data_z = max(max_data_z, z)
+    print(f"Highest data point at z={max_data_z}")
     
     # For each data point
-    for x, y, z in product(range(data_size), repeat=3):
+    for x, y, z in product(range(acc_size), repeat=3):
         if data_cube[x,y,z] != 0:  # If this is a data point
-            center_x = x + start_xy
-            center_y = y + start_xy
+            center_x = x
+            center_y = y
             center_z = z
             
             # Create a set to track unique voxels hit by this data point
             hit_voxels = set()
             
             # Get top face centers of raycast cube
-            top_z = z + rc_offset
-            for rx in range(-rc_offset, rc_offset + 1):
-                for ry in range(-rc_offset, rc_offset + 1):
+            for rx in range(-raycast_cube_size // 2, raycast_cube_size // 2 + 1):
+                for ry in range(-raycast_cube_size // 2, raycast_cube_size // 2 + 1):
                     target_x = center_x + rx
                     target_y = center_y + ry
                     
                     # Calculate direction vector
                     dx = target_x - center_x
                     dy = target_y - center_y
-                    dz = rc_offset  # Distance to top face
+                    dz = raycast_cube_size // 2
                     
                     # Normalize direction vector
                     length = np.sqrt(dx*dx + dy*dy + dz*dz)
@@ -137,22 +174,21 @@ def perform_visibility_analysis(data_cube, acc_cube, raycast_cube_size):
                         dy /= length
                         dz /= length
                     
-                    # Cast ray from data point through raycast cube top face
-                    max_distance = acc_size * 2  # Ensure ray reaches acc cube boundaries
-                    for dist in range(1, max_distance):
+                    # Cast ray
+                    for dist in range(1, acc_size * 2):
                         ray_x = int(center_x + dx * dist)
                         ray_y = int(center_y + dy * dist)
                         ray_z = int(center_z + dz * dist)
                         
-                        # Check if ray is within acc_cube bounds
+                        # Check bounds and height
                         if (0 <= ray_x < acc_size and 
                             0 <= ray_y < acc_size and 
-                            ray_z > data_size + raycast_cube_size):  # Only count points above data + raycast cube
+                            ray_z > max_data_z + raycast_cube_size):  # Only count above highest data
                             
                             # Check if ray hits another data point
-                            check_x = ray_x - start_xy
-                            check_y = ray_y - start_xy
-                            check_z = ray_z - start_xy
+                            check_x = ray_x - center_x
+                            check_y = ray_y - center_y
+                            check_z = ray_z - center_z
                             
                             blocked = False
                             if (0 <= check_x < data_size and 
@@ -183,21 +219,21 @@ def create_visualization_data(params):
         data_size = int(params['dataSize'])
         acc_size = int(params['accSize'])
         raycast_cube_size = int(params.get('raycastCubeSize', 5))
+        num_data_cubes = int(params['numDataCubes'])
         probability = float(params['probability'])
 
         # Create data cube and accumulator
-        data_cube = create_data_cube(data_size, probability)
+        data_cube = create_data_cube(data_size, acc_size, num_data_cubes, probability)
         acc_cube = np.zeros((acc_size, acc_size, acc_size))
         acc_cube = perform_visibility_analysis(data_cube, acc_cube, raycast_cube_size)
 
         # Create 3D scatter plot
-        start_xy = (acc_size - data_size) // 2
         x_data, y_data, z_data, colors = [], [], [], []
         color_counts = {'green': 0, 'blue': 0, 'red': 0, 'yellow': 0}
-        for x, y, z in product(range(data_size), repeat=3):
+        for x, y, z in product(range(acc_size), repeat=3):
             if data_cube[x,y,z] != 0:
-                x_data.append(x + start_xy)
-                y_data.append(y + start_xy)
+                x_data.append(x)
+                y_data.append(y)
                 z_data.append(z)
                 colors.append(data_cube[x,y,z])
                 color_counts[data_cube[x,y,z]] += 1
@@ -396,15 +432,6 @@ def run_analysis():
 def get_visualization():
     try:
         params = request.json
-        data_size = int(params['dataSize'])
-        acc_size = int(params['accSize'])
-        raycast_cube_size = int(params.get('raycastCubeSize', 5))
-        probability = float(params['probability'])
-
-        data_cube = create_data_cube(data_size, probability)
-        acc_cube = np.zeros((acc_size, acc_size, acc_size))
-        acc_cube = perform_visibility_analysis(data_cube, acc_cube, raycast_cube_size)
-
         result = create_visualization_data(params)
         return jsonify(result)
     except Exception as e:

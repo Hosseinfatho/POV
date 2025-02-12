@@ -114,11 +114,15 @@
             <div class="controls">
                 <div class="input-group">
                     <label for="dataSize">Data Cube Size:</label>
-                    <input type="number" id="dataSize" value="9" min="1" max="20" step="1">
+                    <input type="number" id="dataSize" value="10" min="1" max="20" step="1">
                 </div>
                 <div class="input-group">
                     <label for="accSize">Accumulator Size:</label>
-                    <input type="number" id="accSize" value="40" min="20" max="60" step="5">
+                    <input type="number" id="accSize" value="100" min="50" max="150" step="10">
+                </div>
+                <div class="input-group">
+                    <label for="numDataCubes">Number of Data Cubes:</label>
+                    <input type="number" id="numDataCubes" value="3" min="1" max="10" step="1">
                 </div>
                 <div class="input-group">
                     <label for="raycastCubeSize">Raycast Cube Size (odd number):</label>
@@ -163,7 +167,8 @@
                 dataSize: parseInt(document.getElementById('dataSize').value),
                 accSize: parseInt(document.getElementById('accSize').value),
                 raycastCubeSize: parseInt(document.getElementById('raycastCubeSize').value),
-                probability: parseFloat(document.getElementById('probability').value)
+                probability: parseFloat(document.getElementById('probability').value),
+                numDataCubes: parseInt(document.getElementById('numDataCubes').value)
             };
         }
 
