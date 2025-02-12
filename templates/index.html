@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Visibility Analysis</title>
+    <!-- Dependencies -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- React dependencies -->
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js" crossorigin></script>
+    <!-- Vitessce -->
+    <script src="https://unpkg.com/vitessce@3.4.5/dist/umd/vitessce.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vitessce@3.4.5/dist/umd/vitessce.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .tab-container {
+            margin-bottom: 20px;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #f0f0f0;
+            cursor: pointer;
+            margin-right: 5px;
+            border-radius: 4px;
+        }
+        .tab-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            width: 100px;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .plots {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        #visualization1, #visualization2 {
+            width: 48%;
+            height: 800px;
+        }
+        #realData {
+            width: 100%;
+            height: 800px;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+        }
+        .channel-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .channel-button {
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .channel-button.active {
+            background-color: #007bff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tab-container">
+            <button class="tab-button active" onclick="switchTab('simulation')">Simulation</button>
+            <button class="tab-button" onclick="switchTab('real')">Real</button>
+        </div>
+
+        <div id="simulation" class="tab-content active">
+            <div class="controls">
+                <div class="input-group">
+                    <label for="dataSize">Data Cube Size:</label>
+                    <input type="number" id="dataSize" value="9" min="1" max="20" step="1">
+                </div>
+                <div class="input-group">
+                    <label for="accSize">Accumulator Size:</label>
+                    <input type="number" id="accSize" value="40" min="20" max="60" step="5">
+                </div>
+                <div class="input-group">
+                    <label for="raycastCubeSize">Raycast Cube Size (odd number):</label>
+                    <input type="number" id="raycastCubeSize" value="5" min="3" max="11" step="2">
+                </div>
+                <div class="input-group">
+                    <label for="probability">Probability (percent):</label>
+                    <input type="number" id="probability" value="0.1" min="0" max="1" step="0.05">
+                </div>
+            </div>
+            <button onclick="runAnalysis()">Run Analysis</button>
+            <div id="status"></div>
+            <div class="plots">
+                <div id="visualization1"></div>
+                <div id="visualization2"></div>
+            </div>
+        </div>
+
+        <div id="real" class="tab-content">
+            <div id="realData"></div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`button[onclick="switchTab('${tabName}')"]`).classList.add('active');
+
+            if (tabName === 'real') {
+                loadRealData();
+            }
+        }
+
+        function getParameters() {
+            return {
+                dataSize: parseInt(document.getElementById('dataSize').value),
+                accSize: parseInt(document.getElementById('accSize').value),
+                raycastCubeSize: parseInt(document.getElementById('raycastCubeSize').value),
+                probability: parseFloat(document.getElementById('probability').value)
+            };
+        }
+
+        function showStatus(message) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            console.log(message);
+        }
+
+        function updateVisualization() {
+            const params = getParameters();
+            showStatus('Fetching visualization...');
+            
+            fetch('http://127.0.0.1:5000/get_visualization', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(result => {
+                showStatus('Rendering plots...');
+                if (result.fig1 && result.fig2) {
+                    Plotly.newPlot('visualization1', result.fig1.data || [], result.fig1.layout || {});
+                    Plotly.newPlot('visualization2', result.fig2.data || [], result.fig2.layout || {});
+                    showStatus('Visualization complete');
+                } else {
+                    showStatus('Error: Invalid data format received from server');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('Error: ' + (error.message || 'Failed to fetch data'));
+            });
+        }
+
+        function loadRealData() {
+            const vitessceContainer = document.getElementById('realData');
+            vitessceContainer.innerHTML = '<div id="loading">Loading real data visualization...</div>';
+            
+            // Check for Vitessce.VitessceWidget
+            if (typeof VitessceWidgets === 'undefined' || !VitessceWidgets.VitessceWidget) {
+                console.error('Vitessce library not loaded');
+                vitessceContainer.innerHTML = `
+                    <div class="error">
+                        Error: Vitessce library not loaded. Please refresh the page.
+                        <br>
+                        <button onclick="loadRealData()">Retry</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            fetch('http://127.0.0.1:5000/get_real_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    
+                    vitessceContainer.innerHTML = `
+                        <div class="channel-controls">
+                            <button class="channel-button active" onclick="toggleChannel(0)">S100B</button>
+                            <button class="channel-button active" onclick="toggleChannel(1)">CD31</button>
+                            <button class="channel-button active" onclick="toggleChannel(2)">Collagen</button>
+                            <button class="channel-button active" onclick="toggleChannel(3)">CD206</button>
+                        </div>
+                        <div id="vitessce-container" style="height: 800px;"></div>
+                    `;
+                    
+                    console.log("Creating Vitessce instance with config:", data.config);
+                    const vitessceInstance = new VitessceWidgets.VitessceWidget({
+                        config: data.config,
+                        theme: 'light',
+                        height: 800
+                    });
+                    
+                    document.getElementById('vitessce-container').appendChild(vitessceInstance.element);
+                    
+                    // Store the configuration for channel toggling
+                    window.vitessceConfig = data.config;
+                    window.vitessceInstance = vitessceInstance;
+                    
+                    // Set all channels as active initially
+                    document.querySelectorAll('.channel-button').forEach(button => {
+                        button.classList.add('active');
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading real data:', error);
+                    vitessceContainer.innerHTML = `
+                        <div class="error">
+                            Error loading visualization: ${error.message}
+                            <br>
+                            <button onclick="loadRealData()">Retry</button>
+                        </div>
+                    `;
+                });
+        }
+        
+        function toggleChannel(channelIndex) {
+            if (!window.vitessceConfig || !window.vitessceInstance) return;
+            
+            const channels = window.vitessceConfig.layers[0].channels;
+            channels[channelIndex].visible = !channels[channelIndex].visible;
+            
+            const buttons = document.querySelectorAll('.channel-button');
+            buttons[channelIndex].classList.toggle('active', channels[channelIndex].visible);
+            
+            window.vitessceInstance.updateConfig(window.vitessceConfig);
+        }
+
+        function runAnalysis() {
+            const params = getParameters();
+            showStatus('Running analysis...');
+            
+            fetch('http://127.0.0.1:5000/run_analysis', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(params)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showStatus(data.message);
+                if (data.status === 'success') {
+                    updateVisualization();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showStatus('Error: ' + error.message);
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            showStatus('Initializing...');
+            updateVisualization();
+        });
+    </script>
+</body>
+</html>
