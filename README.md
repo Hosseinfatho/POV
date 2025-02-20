@@ -3,10 +3,15 @@
 This project aims to find the best camera positions for optimal 3D visualization. It integrates Flask, PyTorch, Plotly, and React Three.js to provide an efficient backend computation pipeline and an interactive 3D frontend. The framework supports real-time optimization, interactive parameter tuning, and data visualization to enhance camera positioning for various 3D scenes.
 
 🚀 Features
+
 ✅ Backend (Flask & PyTorch) - Computes optimal camera positions using deep learning and mathematical optimization.
+
 ✅ Frontend (React, Three.js, Plotly) - Interactive visualization of 3D objects and camera viewpoints.
+
 ✅ REST API for Communication - Ensures smooth interaction between backend processing and frontend rendering.
+
 ✅ Real-time Adjustment - Users can modify camera angles and instantly see the optimized positioning.
+
 ✅ Visualization & Analysis - Plotly is used for analyzing camera position data and decision-making metrics.
 
 🛠️ Installation
@@ -21,7 +26,7 @@ Git
 bash
 Copy
 Edit
-git clone https://github.com/yourusername/3d-camera-position.git
+git clone :https://github.com/Hosseinfatho/POV.git
 cd 3d-camera-position
 🔹 Backend Setup (Flask + PyTorch)
 Navigate to the backend directory and create a virtual environment:
@@ -88,10 +93,12 @@ Edit
   "best_camera_position": [2.5, 1.2, 5.0],
   "score": 0.97
 }
+
 🎨 UI Overview
 3D Scene View: Displays the object with the camera’s position and orientation.
 Control Panel: Users can adjust camera parameters like angles, height, and distance.
 Plotly Graphs: Visualizes optimization metrics and improvements in camera positioning.
+
 🎯 Usage
 Run Flask backend (python app.py) to start optimization API.
 Run React frontend (npm start) to interact with the 3D scene.
@@ -124,6 +131,7 @@ Frontend
 React - Web UI framework
 Three.js - 3D rendering engine
 Plotly.js - Data visualization
+
 🤝 Contributing
 Contributions are welcome! If you want to improve the project, please:
 
@@ -132,6 +140,7 @@ Create a new branch (git checkout -b feature-name)
 Commit your changes (git commit -m "Add feature")
 Push the branch (git push origin feature-name)
 Open a Pull Request
+
 ![Screenshot 2025-02-11 211216](https://github.com/user-attachments/assets/e65bdde1-34cb-4049-9b0f-996f4dec253e)
 
 
