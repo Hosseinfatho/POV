@@ -108,19 +108,32 @@ bash
 Copy
 Edit
 3d-camera-position/
+
 │── backend/                 # Flask API for camera optimization
+
 │   │── models/              # PyTorch models for optimization
+
 │   │── utils/               # Helper functions
+
 │   │── app.py               # Main API server
+
 │   └── requirements.txt     # Python dependencies
+
 │
+
 │── frontend/                # React app for 3D visualization
+
 │   │── src/components/      # React components (Three.js, UI elements)
+
 │   │── src/api/             # API handlers for fetching data
+
 │   │── public/              # Static assets
+
 │   └── package.json         # Frontend dependencies
 │
 └── README.md                # Project documentation
+
+
 🛠️ Technologies Used
 Backend
 Flask - Web API framework
